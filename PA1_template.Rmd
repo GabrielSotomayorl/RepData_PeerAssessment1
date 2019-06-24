@@ -1,0 +1,79 @@
+---
+title: "Course Project 1"
+author: "Gabriel Sotomayor"
+date: "23-06-2019"
+output:
+  html_document:
+    keep_md: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Load the data
+
+```{r data}
+unzip("activity.zip")
+activity <- read.csv("activity.csv")
+```
+
+# Steps per day
+
+```{r Steps}
+a<-aggregate(activity$steps, list(activity$date), sum,na.rm = T)
+library(ggplot2) 
+library(plotly)
+ggplotly(ggplot(a, aes(x=x)) + geom_histogram(bins=13,aes(fill=1)) +labs(x="Steps Per Day", y="Frequency", title = "Total steps per day")+  theme(legend.position = "none",                                          plot.title = element_text(hjust = 0.5)))
+mean<-mean(a$x)
+median<-median(a$x)
+```
+
+The mean of steps per day is `r mean` and the median is `r median`
+
+# Steps per interval
+
+```{r interval}
+b<-aggregate(activity$steps, list(activity$interval), mean ,na.rm = T)
+ggplotly(ggplot(b, aes(y=x,x=Group.1)) + geom_line(color="steelblue") +
+    labs(x="Interval", y="Steps", title = "Average daily activity pattern")+  
+    theme(plot.title = element_text(hjust = 0.5)) )
+maxint<-b$Group.1[match(max(b$x),b$x)]
+```
+
+The interval which contains the maximum number of steps on average is `r maxint` 
+
+# Imputation
+
+```{r Imputation}
+NAs<-length(activity$steps[which(is.na(activity$steps))])
+activityim<-activity
+for (i in 1:288) {
+    activityim[which(activity$interval==b$Group.1[i]),]$steps[which(is.na( activityim[which(activity$interval==b$Group.1[i]),]$steps))]<-b$x[i]
+}
+
+c<-aggregate(activityim$steps, list(activityim$date), sum,na.rm = T)
+ggplotly(ggplot(c, aes(x=x)) + geom_histogram(bins=13,aes(fill=1)) +labs(x="Steps Per Day", y="Frequency", title = "Total steps per day")+  theme(legend.position = "none",                                                    plot.title = element_text(hjust = 0.5)))
+
+meanim<-format(mean(c$x), scientific=F)
+medianim<-format(median(c$x), scientific=F)
+```
+
+The total number of rows with NA values is `r NAs`. To solve this, the NA values
+were imputated using the mean for the corresponding 5-minute interval. The  mean and median of steps per day in the new data base are `r meanim` and `r medianim` respectively. Those values are greater than the original mean (`r mean`) and median (`r median`).
+
+# Differences between weekdays and weekend
+
+```{r weekdays}
+activityim$week<-weekdays(as.Date(activityim$date))
+activityim$week[activityim$week%in% c("lunes","martes","miércoles","jueves","viernes")]=1
+activityim$week[activityim$week%in% c("sábado","domingo")]=2
+activityim$week<-factor(activityim$week, levels=c(1,2),labels=c("Weekday", "Weekend"))
+
+d<-aggregate(activityim$steps, list(activityim$interval,activityim$week), mean ,na.rm = T)
+ggplotly(ggplot(d, aes(y=x,x=Group.1)) + geom_line(color="steelblue") +
+    labs(x="Interval", y="number Steps", title = "Average daily activity pattern")+  
+    theme(plot.title = element_text(hjust = 0.5))+facet_grid(Group.2~.))
+
+```
+
